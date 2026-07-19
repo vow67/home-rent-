@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rent Management System</title>
+  <!-- Bootstrap 5 + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <!-- Chart.js for reports -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ----- GLOBAL ----- */
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f4f6f9;
+      color: #1a2332;
+    }
+    .page-section { display: none; animation: fadeIn .3s ease; }
+    .page-section.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ----- SIDEBAR ----- */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 250px;
+      background: #1a2332;
+      color: #b0c4de;
+      padding: 20px 0;
+      transition: transform .3s;
+      z-index: 1050;
+      overflow-y: auto;
+    }
+    .sidebar .brand {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+      padding: 0 20px 20px;
+      border-bottom: 1px solid #2a3a4a;
+      margin-bottom: 20px;
+    }
+    .sidebar .brand i { color: #4f8cf7; margin-right: 10px; }
+    .sidebar .nav-item {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #b0c4de;
+      text-decoration: none;
+      transition: .2s;
+      cursor: pointer;
+    }
+    .sidebar .nav-item:hover, .sidebar .nav-item.active {
+      background: #2a3a4a;
+      color: #fff;
+      border-left: 4px solid #4f8cf7;
+    }
+    .sidebar .nav-item i { width: 24px; text-align: center; }
+
+    /* ----- MAIN CONTENT ----- */
+    .main-content {
+      margin-left: 250px;
+      padding: 20px;
+    }
+    .top-bar {
+      background: #fff;
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    .top-bar .user-info { display: flex; align-items: center; gap: 15px; }
+    .top-bar .logout-btn { cursor: pointer; color: #dc3545; }
+
+    /* ----- STAT CARDS ----- */
+    .stat-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      border-left: 6px solid #4f8cf7;
+      transition: .2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
+    .stat-card .stat-icon { font-size: 2rem; color: #4f8cf7; }
+    .stat-card .stat-number { font-size: 2rem; font-weight: 700; }
+    .stat-card .stat-label { color: #6c7a8a; font-size: 0.9rem; }
+
+    /* ----- CARDS / TABLES ----- */
+    .card-custom {
+      background: #fff;
+      border-radius: 16px;
+      border: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .card-custom .card-header {
+      background: #f8faff;
+      border-bottom: 1px solid #eef2f7;
+      padding: 16px 24px;
+      font-weight: 600;
+    }
+    .card-custom .card-body { padding: 20px 24px; }
+    .table th { font-weight: 600; color: #4a5a6a; border-top: none; }
+    .table td { vertical-align: middle; }
+
+    /* ----- BADGES ----- */
+    .badge-status {
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-weight: 500;
+      font-size: 0.75rem;
+    }
+    .badge-occupied { background: #d4edda; color: #155724; }
+    .badge-vacant { background: #fff3cd; color: #856404; }
+    .badge-paid { background: #d4edda; color: #155724; }
+    .badge-pending { background: #fff3cd; color: #856404; }
+    .badge-late { background: #f8d7da; color: #721c24; }
+
+    /* ----- MODAL ----- */
+    .modal-custom .modal-content { border-radius: 20px; border: none; }
+
+    /* ----- RESPONSIVE ----- */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.show { transform: translateX(0); }
+      .main-content { margin-left: 0; }
+      .top-bar .menu-toggle { display: block; }
+    }
+    .menu-toggle { display: none; background: none; border: none; font-size: 1.8rem; color: #1a2332; }
+
+    /* misc */
+    .action-btns .btn-icon {
+      background: none;
+      border: none;
+      padding: 4px 8px;
+      color: #6c7a8a;
+      transition: .2s;
+    }
+    .action-btns .btn-icon:hover { color: #1a2332; }
+    .action-btns .btn-icon.btn-edit:hover { color: #4f8cf7; }
+    .action-btns .btn-icon.btn-delete:hover { color: #dc3545; }
+    .text-muted small { font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- SIDEBAR                                      -->
+<!-- ============================================ -->
+<nav class="sidebar" id="sidebar">
+  <div class="brand"><i class="bi bi-house-door"></i>RentPro</div>
+  <div class="nav-item active" data-page="dashboard"><i class="bi bi-speedometer2"></i> Dashboard</div>
+  <div class="nav-item" data-page="tenants"><i class="bi bi-people"></i> Tenants</div>
+  <div class="nav-item" data-page="properties"><i class="bi bi-building"></i> Properties</div>
+  <div class="nav-item" data-page="payments"><i class="bi bi-credit-card"></i> Payments</div>
+  <div class="nav-item" data-page="reports"><i class="bi bi-bar-chart"></i> Reports</div>
+  <hr style="border-color:#2a3a4a; margin: 15px 20px;" />
+  <div class="nav-item" id="logoutBtn" style="color:#dc3545;"><i class="bi bi-box-arrow-right"></i> Logout</div>
+</nav>
+
+<!-- ============================================ -->
+<!-- MAIN CONTENT                                 -->
+<!-- ============================================ -->
+<div class="main-content" id="mainContent">
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div>
+      <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
+      <span id="pageTitle" class="fw-bold fs-5">Dashboard</span>
+    </div>
+    <div class="user-info">
+      <span id="userNameDisplay">Admin</span>
+      <span class="logout-btn" id="logoutBtnTop"><i class="bi bi-box-arrow-right"></i></span>
+    </div>
+  </div>
+
+  <!-- ======== PAGE: DASHBOARD ======== -->
+  <section class="page-section active" id="page-dashboard">
+    <div class="row g-4" id="dashboardStats">
+      <!-- stat cards injected by JS -->
+    </div>
+    <div class="row g-4 mt-2">
+      <div class="col-md-6">
+        <div class="card-custom">
+          <div class="card-header">Recent Payments</div>
+          <div class="card-body" id="recentPaymentsTable"><p class="text-muted">Loading...</p></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card-custom">
+          <div class="card-header">Monthly Collection</div>
+          <div class="card-body"><canvas id="collectionChart" height="200"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== PAGE: TENANTS ======== -->
+  <section class="page-section" id="page-tenants">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3>Tenants</h3>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#tenantModal"><i class="bi bi-plus"></i> Add Tenant</button>
+    </div>
+    <div class="card-custom">
+      <div class="card-body">
+        <input type="text" class="form-control mb-3" id="tenantSearch" placeholder="Search tenants..." />
+        <div class="table-responsive">
+          <table class="table table-hover" id="tenantTable">
+            <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Actions</th></tr></thead>
+            <tbody id="tenantTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== PAGE: PROPERTIES ======== -->
+  <section class="page-section" id="page-properties">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3>Properties</h3>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#propertyModal"><i class="bi bi-plus"></i> Add Property</button>
+    </div>
+    <div class="card-custom">
+      <div class="card-body">
+        <input type="text" class="form-control mb-3" id="propertySearch" placeholder="Search properties..." />
+        <div class="table-responsive">
+          <table class="table table-hover" id="propertyTable">
+            <thead><tr><th>Property</th><th>Address</th><th>Rent</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="propertyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== PAGE: PAYMENTS ======== -->
+  <section class="page-section" id="page-payments">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3>Payments</h3>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="bi bi-plus"></i> Record Payment</button>
+    </div>
+    <div class="card-custom">
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3"><input type="text" class="form-control" id="paymentSearch" placeholder="Search..." /></div>
+          <div class="col-md-3"><select class="form-select" id="paymentFilterStatus"><option value="">All Status</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="late">Late</option></select></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover" id="paymentTable">
+            <thead><tr><th>Tenant</th><th>Property</th><th>Month</th><th>Amount</th><th>Date</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="paymentTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== PAGE: REPORTS ======== -->
+  <section class="page-section" id="page-reports">
+    <h3 class="mb-3">Reports</h3>
+    <div class="row g-4 mb-4" id="reportStats"></div>
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="card-custom"><div class="card-header">Monthly Collections</div><div class="card-body"><canvas id="reportChart" height="200"></canvas></div></div>
+      </div>
+      <div class="col-md-6">
+        <div class="card-custom"><div class="card-header">Occupancy Distribution</div><div class="card-body"><canvas id="occupancyChart" height="200"></canvas></div></div>
+      </div>
+      <div class="col-12">
+        <div class="card-custom"><div class="card-header">Payment Status Overview</div><div class="card-body"><canvas id="paymentStatusChart" height="150"></canvas></div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============================================ -->
+<!-- MODALS                                       -->
+<!-- ============================================ -->
+
+<!-- Tenant Modal (Add/Edit) -->
+<div class="modal fade" id="tenantModal" tabindex="-1">
+  <div class="modal-dialog modal-custom">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="tenantModalTitle">Add Tenant</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="tenantForm">
+          <input type="hidden" id="tenantFormId" />
+          <div class="mb-3"><label>Full Name *</label><input type="text" class="form-control" id="tenantFormName" required /></div>
+          <div class="mb-3"><label>Email *</label><input type="email" class="form-control" id="tenantFormEmail" required /></div>
+          <div class="mb-3"><label>Phone *</label><input type="text" class="form-control" id="tenantFormPhone" required /></div>
+          <div class="mb-3"><label>Address</label><textarea class="form-control" id="tenantFormAddress" rows="2"></textarea></div>
+          <div class="mb-3"><label>ID Number</label><input type="text" class="form-control" id="tenantFormIdNumber" /></div>
+          <div class="mb-3"><label>Emergency Contact</label><input type="text" class="form-control" id="tenantFormEmergency" /></div>
+          <button type="submit" class="btn btn-primary">Save Tenant</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Property Modal -->
+<div class="modal fade" id="propertyModal" tabindex="-1">
+  <div class="modal-dialog modal-custom">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="propertyModalTitle">Add Property</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="propertyForm">
+          <input type="hidden" id="propertyFormId" />
+          <div class="mb-3"><label>Property Name *</label><input type="text" class="form-control" id="propertyFormName" required /></div>
+          <div class="mb-3"><label>Address *</label><textarea class="form-control" id="propertyFormAddress" rows="2" required></textarea></div>
+          <div class="mb-3"><label>Monthly Rent ($) *</label><input type="number" class="form-control" id="propertyFormRent" step="0.01" required /></div>
+          <div class="mb-3"><label>Status</label>
+            <select class="form-select" id="propertyFormStatus">
+              <option value="vacant">Vacant</option>
+              <option value="occupied">Occupied</option>
+            </select>
+          </div>
+          <div class="mb-3"><label>Description</label><textarea class="form-control" id="propertyFormDesc" rows="2"></textarea></div>
+          <button type="submit" class="btn btn-primary">Save Property</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog modal-custom">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Record Payment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="paymentForm">
+          <input type="hidden" id="paymentFormId" />
+          <div class="mb-3"><label>Tenant *</label>
+            <select class="form-select" id="paymentFormTenant" required></select>
+          </div>
+          <div class="mb-3"><label>Property *</label>
+            <select class="form-select" id="paymentFormProperty" required></select>
+          </div>
+          <div class="mb-3"><label>Month & Year *</label><input type="month" class="form-control" id="paymentFormMonth" required /></div>
+          <div class="mb-3"><label>Amount ($) *</label><input type="number" class="form-control" id="paymentFormAmount" step="0.01" required /></div>
+          <div class="mb-3"><label>Payment Date *</label><input type="date" class="form-control" id="paymentFormDate" required /></div>
+          <div class="mb-3"><label>Method</label>
+            <select class="form-select" id="paymentFormMethod">
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Online">Online</option>
+            </select>
+          </div>
+          <div class="mb-3"><label>Status</label>
+            <select class="form-select" id="paymentFormStatus">
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="late">Late</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Payment</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TOAST (simple)                              -->
+<!-- ============================================ -->
+<div style="position:fixed; bottom:20px; right:20px; z-index:9999;" id="toastContainer"></div>
+
+<!-- ============================================ -->
+<!-- BOOTSTRAP JS                                -->
+<!-- ============================================ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- ============================================ -->
+<!-- APPLICATION LOGIC                            -->
+<!-- ============================================ -->
+<script>
+  // ============================================================
+  // 1. DATA LAYER (localStorage)
+  // ============================================================
+  const STORAGE_KEYS = {
+    tenants: 'rent_tenants',
+    properties: 'rent_properties',
+    payments: 'rent_payments',
+    users: 'rent_users',
+    currentUser: 'rent_currentUser'
+  };
+
+  function getData(key) {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  }
+
+  function setData(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  function getNextId(collection) {
+    if (collection.length === 0) return 1;
+    return Math.max(...collection.map(item => item.id || 0)) + 1;
+  }
+
+  function getCurrentUser() {
+    const user = localStorage.getItem(STORAGE_KEYS.currentUser);
+    return user ? JSON.parse(user) : null;
+  }
+
+  function setCurrentUser(user) {
+    localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(user));
+  }
+
+  // Default admin user
+  function initUsers() {
+    let users = getData(STORAGE_KEYS.users);
+    if (users.length === 0) {
+      users = [{ id: 1, name: 'Admin', email: 'admin@example.com', password: 'admin123', role: 'admin' }];
+      setData(STORAGE_KEYS.users, users);
+    }
+    return users;
+  }
+
+  // Sample data for initial load
+  function seedSampleData() {
+    let tenants = getData(STORAGE_KEYS.tenants);
+    let properties = getData(STORAGE_KEYS.properties);
+    let payments = getData(STORAGE_KEYS.payments);
+    if (tenants.length === 0 && properties.length === 0) {
+      // Create sample tenants
+      tenants = [
+        { id: 1, name: 'John Doe', email: 'john@example.com', phone: '555-0101', address: '123 Main St', idNumber: 'ID001', emergencyContact: 'Jane Doe 555-0102', createdAt: new Date().toISOString() },
+        { id: 2, name: 'Alice Smith', email: 'alice@example.com', phone: '555-0202', address: '456 Oak Ave', idNumber: 'ID002', emergencyContact: 'Bob Smith 555-0203', createdAt: new Date().toISOString() }
+      ];
+      properties = [
+        { id: 1, propertyName: 'Sunset Apartments', address: '789 Sunset Blvd', rentAmount: 1200, status: 'occupied', description: '2BR, 1BA', createdAt: new Date().toISOString() },
+        { id: 2, propertyName: 'Greenfield House', address: '321 Greenfield Rd', rentAmount: 950, status: 'vacant', description: '3BR, 2BA', createdAt: new Date().toISOString() }
+      ];
+      payments = [
+        { id: 1, tenantId: 1, propertyId: 1, monthYear: '2026-06', amount: 1200, paymentDate: '2026-06-01', paymentMethod: 'Bank Transfer', status: 'paid', createdAt: new Date().toISOString() },
+        { id: 2, tenantId: 1, propertyId: 1, monthYear: '2026-07', amount: 1200, paymentDate: '2026-07-03', paymentMethod: 'Cash', status: 'paid', createdAt: new Date().toISOString() },
+        { id: 3, tenantId: 2, propertyId: 2, monthYear: '2026-06', amount: 950, paymentDate: '2026-06-10', paymentMethod: 'Online', status: 'pending', createdAt: new Date().toISOString() }
+      ];
+      setData(STORAGE_KEYS.tenants, tenants);
+      setData(STORAGE_KEYS.properties, properties);
+      setData(STORAGE_KEYS.payments, payments);
+    }
+  }
+
+  // ============================================================
+  // 2. HELPERS
+  // ============================================================
+  function getTenantName(id) {
+    const tenants = getData(STORAGE_KEYS.tenants);
+    const t = tenants.find(t => t.id === id);
+    return t ? t.name : 'Unknown';
+  }
+
+  function getPropertyName(id) {
+    const props = getData(STORAGE_KEYS.properties);
+    const p = props.find(p => p.id === id);
+    return p ? p.propertyName : 'Unknown';
+  }
+
+  function getPropertyRent(id) {
+    const props = getData(STORAGE_KEYS.properties);
+    const p = props.find(p => p.id === id);
+    return p ? p.rentAmount : 0;
+  }
+
+  function getStatusBadge(status) {
+    const map = {
+      'occupied': 'badge-occupied',
+      'vacant': 'badge-vacant',
+      'paid': 'badge-paid',
+      'pending': 'badge-pending',
+      'late': 'badge-late'
+    };
+    return `<span class="badge-status ${map[status] || ''}">${status.charAt(0).toUpperCase()+status.slice(1)}</span>`;
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function formatCurrency(amount) {
+    return '$' + Number(amount).toFixed(2);
+  }
+
+  function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const colors = { info: '#4f8cf7', success: '#28a745', danger: '#dc3545', warning: '#ffc107' };
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      background: #fff;
+      border-left: 6px solid ${colors[type] || colors.info};
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 12px 20px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      font-weight: 500;
+      min-width: 250px;
+      animation: slideIn 0.3s ease;
+    `;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+  }
+
+  // ============================================================
+  // 3. NAVIGATION
+  // ============================================================
+  function navigateTo(page) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById(`page-${page}`);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll(`.sidebar .nav-item[data-page="${page}"]`).forEach(el => el.classList.add('active'));
+
+    document.getElementById('pageTitle').textContent = page.charAt(0).toUpperCase() + page.slice(1);
+
+    // Render page content
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'tenants') renderTenants();
+    if (page === 'properties') renderProperties();
+    if (page === 'payments') renderPayments();
+    if (page === 'reports') renderReports();
+  }
+
+  document.querySelectorAll('.sidebar .nav-item[data-page]').forEach(el => {
+    el.addEventListener('click', () => {
+      const page = el.dataset.page;
+      navigateTo(page);
+      // close sidebar on mobile
+      document.getElementById('sidebar').classList.remove('show');
+    });
+  });
+
+  // Mobile menu toggle
+  document.getElementById('menuToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('show');
+  });
+
+  // ============================================================
+  // 4. AUTH
+  // ============================================================
+  function checkAuth() {
+    const user = getCurrentUser();
+    if (!user) {
+      // Show login modal or redirect? We'll implement a simple login popup.
+      // For simplicity, we'll show a login form overlay.
+      showLoginModal();
+      return false;
+    }
+    document.getElementById('userNameDisplay').textContent = user.name;
+    return true;
+  }
+
+  function showLoginModal() {
+    // Since we can't use another modal easily, we'll create a simple overlay.
+    const overlay = document.createElement('div');
+    overlay.id = 'loginOverlay';
+    overlay.style.cssText = `
+      position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999;
+      display:flex; align-items:center; justify-content:center;
+    `;
+    overlay.innerHTML = `
+      <div style="background:#fff; padding:40px; border-radius:24px; width:100%; max-width:400px; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <h3 class="mb-3">Login</h3>
+        <form id="loginForm">
+          <div class="mb-3"><label>Email</label><input type="email" class="form-control" id="loginEmail" value="admin@example.com" required /></div>
+          <div class="mb-3"><label>Password</label><input type="password" class="form-control" id="loginPassword" value="admin123" required /></div>
+          <button type="submit" class="btn btn-primary w-100">Sign In</button>
+          <p class="mt-2 text-center"><small>Default: admin@example.com / admin123</small></p>
+          <p class="text-center"><a href="#" id="registerLink">Create account</a></p>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      const users = getData(STORAGE_KEYS.users);
+      const user = users.find(u => u.email === email && u.password === password);
+      if (!user) {
+        showToast('Invalid credentials', 'danger');
+        return;
+      }
+      setCurrentUser({ id: user.id, name: user.name, email: user.email });
+      overlay.remove();
+      showToast('Welcome back, ' + user.name, 'success');
+      navigateTo('dashboard');
+    });
+
+    document.getElementById('registerLink').addEventListener('click', (e) => {
+      e.preventDefault();
+      // Show register form (simplified)
+      const form = document.querySelector('#loginOverlay form');
+      form.innerHTML = `
+        <h3 class="mb-3">Register</h3>
+        <div class="mb-3"><label>Full Name</label><input type="text" class="form-control" id="regName" required /></div>
+        <div class="mb-3"><label>Email</label><input type="email" class="form-control" id="regEmail" required /></div>
+        <div class="mb-3"><label>Password</label><input type="password" class="form-control" id="regPassword" required /></div>
+        <button type="submit" class="btn btn-primary w-100">Create Account</button>
+        <p class="mt-2 text-center"><a href="#" id="loginLink">Back to Login</a></p>
+      `;
+      document.querySelector('#loginOverlay form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('regName').value.trim();
+        const email = document.getElementById('regEmail').value.trim();
+        const password = document.getElementById('regPassword').value.trim();
+        if (!name || !email || !password) { showToast('All fields required', 'danger'); return; }
+        const users = getData(STORAGE_KEYS.users);
+        if (users.find(u => u.email === email)) { showToast('Email already used', 'danger'); return; }
+        const newUser = { id: getNextId(users), name, email, password, role: 'admin' };
+        users.push(newUser);
+        setData(STORAGE_KEYS.users, users);
+        showToast('Account created! Please login.', 'success');
+        // Switch back to login
+        document.querySelector('#loginOverlay form').innerHTML = `
+          <h3 class="mb-3">Login</h3>
+          <div class="mb-3"><label>Email</label><input type="email" class="form-control" id="loginEmail" value="${email}" required /></div>
+          <div class="mb-3"><label>Password</label><input type="password" class="form-control" id="loginPassword" required /></div>
+          <button type="submit" class="btn btn-primary w-100">Sign In</button>
+          <p class="mt-2 text-center"><a href="#" id="registerLink">Create account</a></p>
+        `;
+        // re-attach events
+        document.querySelector('#loginOverlay form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const email = document.getElementById('loginEmail').value.trim();
+          const password = document.getElementById('loginPassword').value.trim();
+          const users = getData(STORAGE_KEYS.users);
+          const user = users.find(u => u.email === email && u.password === password);
+          if (!user) { showToast('Invalid credentials', 'danger'); return; }
+          setCurrentUser({ id: user.id, name: user.name, email: user.email });
+          document.getElementById('loginOverlay').remove();
+          showToast('Welcome back, ' + user.name, 'success');
+          navigateTo('dashboard');
+        });
+        document.querySelector('#loginLink')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          // just reload to login
+          document.querySelector('#loginOverlay form').innerHTML = `
+            <h3 class="mb-3">Login</h3>
+            <div class="mb-3"><label>Email</label><input type="email" class="form-control" id="loginEmail" value="admin@example.com" required /></div>
+            <div class="mb-3"><label>Password</label><input type="password" class="form-control" id="loginPassword" required /></div>
+            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+            <p class="mt-2 text-center"><a href="#" id="registerLink">Create account</a></p>
+          `;
+          // re-bind events...
+          // For brevity, we'll just reload the page, but we'll keep it simple: we'll re-run the login form logic.
+          // Better: we'll just attach a new listener.
+          document.querySelector('#loginOverlay form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const users = getData(STORAGE_KEYS.users);
+            const user = users.find(u => u.email === email && u.password === password);
+            if (!user) { showToast('Invalid credentials', 'danger'); return; }
+            setCurrentUser({ id: user.id, name: user.name, email: user.email });
+            document.getElementById('loginOverlay').remove();
+            showToast('Welcome back, ' + user.name, 'success');
+            navigateTo('dashboard');
+          });
+          document.querySelector('#registerLink')?.addEventListener('click', arguments.callee); // recursive? We'll just use a function.
+        });
+      });
+      document.querySelector('#loginLink')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Go back to login
+        document.querySelector('#loginOverlay form').innerHTML = `
+          <h3 class="mb-3">Login</h3>
+          <div class="mb-3"><label>Email</label><input type="email" class="form-control" id="loginEmail" value="admin@example.com" required /></div>
+          <div class="mb-3"><label>Password</label><input type="password" class="form-control" id="loginPassword" required /></div>
+          <button type="submit" class="btn btn-primary w-100">Sign In</button>
+          <p class="mt-2 text-center"><a href="#" id="registerLink">Create account</a></p>
+        `;
+        // re-bind
+        document.querySelector('#loginOverlay form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const email = document.getElementById('loginEmail').value.trim();
+          const password = document.getElementById('loginPassword').value.trim();
+          const users = getData(STORAGE_KEYS.users);
+          const user = users.find(u => u.email === email && u.password === password);
+          if (!user) { showToast('Invalid credentials', 'danger'); return; }
+          setCurrentUser({ id: user.id, name: user.name, email: user.email });
+          document.getElementById('loginOverlay').remove();
+          showToast('Welcome back, ' + user.name, 'success');
+          navigateTo('dashboard');
+        });
+        document.querySelector('#registerLink')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          // switch to register
+        });
+      });
+    });
+  }
+
+  // Logout
+  function logout() {
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
+    showToast('Logged out', 'info');
+    // Show login
+    showLoginModal();
+    // Hide dashboard content
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.getElementById('page-dashboard').classList.add('active');
+  }
+
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+  document.getElementById('logoutBtnTop').addEventListener('click', logout);
+
+  // ============================================================
+  // 5. RENDER FUNCTIONS
+  // ============================================================
+
+  // ----- DASHBOARD -----
+  function renderDashboard() {
+    const tenants = getData(STORAGE_KEYS.tenants);
+    const properties = getData(STORAGE_KEYS.properties);
+    const payments = getData(STORAGE_KEYS.payments);
+
+    const totalTenants = tenants.length;
+    const totalProperties = properties.length;
+    const occupied = properties.filter(p => p.status === 'occupied').length;
+    const occupancyRate = totalProperties > 0 ? Math.round((occupied / totalProperties) * 100) : 0;
+
+    const paidPayments = payments.filter(p => p.status === 'paid');
+    const totalCollected = paidPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const pending = payments.filter(p => p.status === 'pending');
+    const totalPending = pending.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // Stats
+    document.getElementById('dashboardStats').innerHTML = `
+      <div class="col-md-3"><div class="stat-card"><div class="stat-icon"><i class="bi bi-people"></i></div><div class="stat-number">${totalTenants}</div><div class="stat-label">Total Tenants</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="border-left-color:#28a745;"><div class="stat-icon"><i class="bi bi-building"></i></div><div class="stat-number">${totalProperties}</div><div class="stat-label">Properties</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="border-left-color:#ffc107;"><div class="stat-icon"><i class="bi bi-percent"></i></div><div class="stat-number">${occupancyRate}%</div><div class="stat-label">Occupancy Rate</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="border-left-color:#4f8cf7;"><div class="stat-icon"><i class="bi bi-currency-dollar"></i></div><div class="stat-number">${formatCurrency(totalCollected)}</div><div class="stat-label">Collected</div></div></div>
+    `;
+
+    // Recent payments (last 5)
+    const recent = payments.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0,5);
+    let html = '';
+    if (recent.length === 0) html = '<p class="text-muted">No payments recorded.</p>';
+    else {
+      html = `<table class="table table-sm"><thead><tr><th>Tenant</th><th>Property</th><th>Amount</th><th>Status</th></tr></thead><tbody>`;
+      recent.forEach(p => {
+        html += `<tr>
+          <td>${getTenantName(p.tenantId)}</td>
+          <td>${getPropertyName(p.propertyId)}</td>
+          <td>${formatCurrency(p.amount)}</td>
+          <td>${getStatusBadge(p.status)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    document.getElementById('recentPaymentsTable').innerHTML = html;
+
+    // Chart: monthly collection (last 6 months)
+    const ctx = document.getElementById('collectionChart').getContext('2d');
+    // aggregate by month
+    const monthMap = {};
+    payments.forEach(p => {
+      if (p.status === 'paid') {
+        const key = p.monthYear; // e.g., "2026-06"
+        monthMap[key] = (monthMap[key] || 0) + Number(p.amount);
+      }
+    });
+    const sortedMonths = Object.keys(monthMap).sort();
+    const last6 = sortedMonths.slice(-6);
+    const labels = last6.map(m => {
+      const [year, month] = m.split('-');
+      return new Date(year, month-1).toLocaleString('default', { month: 'short', year: 'numeric' });
+    });
+    const data = last6.map(m => monthMap[m] || 0);
+    new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Collected ($)', data, backgroundColor: '#4f8cf7', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+  }
+
+  // ----- TENANTS -----
+  function renderTenants(filter = '') {
+    let tenants = getData(STORAGE_KEYS.tenants);
+    if (filter) {
+      const f = filter.toLowerCase();
+      tenants = tenants.filter(t => t.name.toLowerCase().includes(f) || t.email.toLowerCase().includes(f));
+    }
+    const tbody = document.getElementById('tenantTableBody');
+    if (tenants.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No tenants found.</td></tr>';
+      return;
+    }
+    let html = '';
+    tenants.forEach(t => {
+      html += `<tr>
+        <td><strong>${t.name}</strong></td>
+        <td>${t.email}</td>
+        <td>${t.phone || '—'}</td>
+        <td>${t.address || '—'}</td>
+        <td class="action-btns">
+          <button class="btn-icon btn-edit" onclick="editTenant(${t.id})"><i class="bi bi-pencil"></i></button>
+          <button class="btn-icon btn-delete" onclick="deleteTenant(${t.id})"><i class="bi bi-trash3"></i></button>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  document.getElementById('tenantSearch').addEventListener('input', (e) => {
+    renderTenants(e.target.value);
+  });
+
+  // Add/Edit Tenant
+  document.getElementById('tenantForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('tenantFormId').value;
+    const name = document.getElementById('tenantFormName').value.trim();
+    const email = document.getElementById('tenantFormEmail').value.trim();
+    const phone = document.getElementById('tenantFormPhone').value.trim();
+    const address = document.getElementById('tenantFormAddress').value.trim();
+    const idNumber = document.getElementById('tenantFormIdNumber').value.trim();
+    const emergency = document.getElementById('tenantFormEmergency').value.trim();
+
+    if (!name || !email || !phone) { showToast('Name, Email, and Phone are required.', 'danger'); return; }
+
+    let tenants = getData(STORAGE_KEYS.tenants);
+    if (id) {
+      // edit
+      const idx = tenants.findIndex(t => t.id === Number(id));
+      if (idx === -1) { showToast('Tenant not found', 'danger'); return; }
+      tenants[idx] = { ...tenants[idx], name, email, phone, address, idNumber, emergencyContact: emergency };
+      setData(STORAGE_KEYS.tenants, tenants);
+      showToast('Tenant updated.', 'success');
+    } else {
+      // add
+      const newTenant = {
+        id: getNextId(tenants),
+        name, email, phone, address, idNumber, emergencyContact: emergency,
+        createdAt: new Date().toISOString()
+      };
+      tenants.push(newTenant);
+      setData(STORAGE_KEYS.tenants, tenants);
+      showToast('Tenant added.', 'success');
+    }
+    document.getElementById('tenantForm').reset();
+    document.getElementById('tenantFormId').value = '';
+    bootstrap.Modal.getInstance(document.getElementById('tenantModal')).hide();
+    renderTenants(document.getElementById('tenantSearch').value);
+  });
+
+  function editTenant(id) {
+    const tenants = getData(STORAGE_KEYS.tenants);
+    const t = tenants.find(t => t.id === id);
+    if (!t) return;
+    document.getElementById('tenantFormId').value = t.id;
+    document.getElementById('tenantFormName').value = t.name;
+    document.getElementById('tenantFormEmail').value = t.email;
+    document.getElementById('tenantFormPhone').value = t.phone || '';
+    document.getElementById('tenantFormAddress').value = t.address || '';
+    document.getElementById('tenantFormIdNumber').value = t.idNumber || '';
+    document.getElementById('tenantFormEmergency').value = t.emergencyContact || '';
+    document.getElementById('tenantModalTitle').textContent = 'Edit Tenant';
+    new bootstrap.Modal(document.getElementById('tenantModal')).show();
+  }
+
+  function deleteTenant(id) {
+    if (!confirm('Delete this tenant and all associated payments?')) return;
+    let tenants = getData(STORAGE_KEYS.tenants);
+    tenants = tenants.filter(t => t.id !== id);
+    setData(STORAGE_KEYS.tenants, tenants);
+    // Also delete related payments
+    let payments = getData(STORAGE_KEYS.payments);
+    payments = payments.filter(p => p.tenantId !== id);
+    setData(STORAGE_KEYS.payments, payments);
+    showToast('Tenant deleted.', 'info');
+    renderTenants(document.getElementById('tenantSearch').value);
+  }
+
+  // ----- PROPERTIES -----
+  function renderProperties(filter = '') {
+    let properties = getData(STORAGE_KEYS.properties);
+    if (filter) {
+      const f = filter.toLowerCase();
+      properties = properties.filter(p => p.propertyName.toLowerCase().includes(f) || p.address.toLowerCase().includes(f));
+    }
+    const tbody = document.getElementById('propertyTableBody');
+    if (properties.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No properties found.</td></tr>';
+      return;
+    }
+    let html = '';
+    properties.forEach(p => {
+      html += `<tr>
+        <td><strong>${p.propertyName}</strong></td>
+        <td>${p.address}</td>
+        <td>${formatCurrency(p.rentAmount)}</td>
+        <td>${getStatusBadge(p.status)}</td>
+        <td class="action-btns">
+          <button class="btn-icon btn-edit" onclick="editProperty(${p.id})"><i class="bi bi-pencil"></i></button>
+          <button class="btn-icon btn-delete" onclick="deleteProperty(${p.id})"><i class="bi bi-trash3"></i></button>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  document.getElementById('propertySearch').addEventListener('input', (e) => {
+    renderProperties(e.target.value);
+  });
+
+  document.getElementById('propertyForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('propertyFormId').value;
+    const propertyName = document.getElementById('propertyFormName').value.trim();
+    const address = document.getElementById('propertyFormAddress').value.trim();
+    const rentAmount = parseFloat(document.getElementById('propertyFormRent').value);
+    const status = document.getElementById('propertyFormStatus').value;
+    const description = document.getElementById('propertyFormDesc').value.trim();
+
+    if (!propertyName || !address || isNaN(rentAmount)) { showToast('All required fields must be filled.', 'danger'); return; }
+
+    let properties = getData(STORAGE_KEYS.properties);
+    if (id) {
+      const idx = properties.findIndex(p => p.id === Number(id));
+      if (idx === -1) { showToast('Property not found', 'danger'); return; }
+      properties[idx] = { ...properties[idx], propertyName, address, rentAmount, status, description };
+      setData(STORAGE_KEYS.properties, properties);
+      showToast('Property updated.', 'success');
+    } else {
+      const newProp = {
+        id: getNextId(properties),
+        propertyName, address, rentAmount, status, description,
+        createdAt: new Date().toISOString()
+      };
+      properties.push(newProp);
+      setData(STORAGE_KEYS.properties, properties);
+      showToast('Property added.', 'success');
+    }
+    document.getElementById('propertyForm').reset();
+    document.getElementById('propertyFormId').value = '';
+    bootstrap.Modal.getInstance(document.getElementById('propertyModal')).hide();
+    renderProperties(document.getElementById('propertySearch').value);
+  });
+
+  function editProperty(id) {
+    const properties = getData(STORAGE_KEYS.properties);
+    const p = properties.find(p => p.id === id);
+    if (!p) return;
+    document.getElementById('propertyFormId').value = p.id;
+    document.getElementById('propertyFormName').value = p.propertyName;
+    document.getElementById('propertyFormAddress').value = p.address;
+    document.getElementById('propertyFormRent').value = p.rentAmount;
+    document.getElementById('propertyFormStatus').value = p.status;
+    document.getElementById('propertyFormDesc').value = p.description || '';
+    document.getElementById('propertyModalTitle').textContent = 'Edit Property';
+    new bootstrap.Modal(document.getElementById('propertyModal')).show();
+  }
+
+  function deleteProperty(id) {
+    if (!confirm('Delete this property? This will also delete related payments.')) return;
+    let properties = getData(STORAGE_KEYS.properties);
+    properties = properties.filter(p => p.id !== id);
+    setData(STORAGE_KEYS.properties, properties);
+    let payments = getData(STORAGE_KEYS.payments);
+    payments = payments.filter(p => p.propertyId !== id);
+    setData(STORAGE_KEYS.payments, payments);
+    showToast('Property deleted.', 'info');
+    renderProperties(document.getElementById('propertySearch').value);
+  }
+
+  // ----- PAYMENTS -----
+  function renderPayments(filter = '', statusFilter = '') {
+    let payments = getData(STORAGE_KEYS.payments);
+    // join with tenant and property names
+    const tenants = getData(STORAGE_KEYS.tenants);
+    const properties = getData(STORAGE_KEYS.properties);
+    let enriched = payments.map(p => {
+      const tenant = tenants.find(t => t.id === p.tenantId);
+      const property = properties.find(pr => pr.id === p.propertyId);
+      return {
+        ...p,
+        tenantName: tenant ? tenant.name : 'Unknown',
+        propertyName: property ? property.propertyName : 'Unknown'
+      };
+    });
+
+    if (filter) {
+      const f = filter.toLowerCase();
+      enriched = enriched.filter(p => p.tenantName.toLowerCase().includes(f) || p.propertyName.toLowerCase().includes(f));
+    }
+    if (statusFilter) {
+      enriched = enriched.filter(p => p.status === statusFilter);
+    }
+
+    const tbody = document.getElementById('paymentTableBody');
+    if (enriched.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No payments found.</td></tr>';
+      return;
+    }
+    let html = '';
+    enriched.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    enriched.forEach(p => {
+      html += `<tr>
+        <td>${p.tenantName}</td>
+        <td>${p.propertyName}</td>
+        <td>${p.monthYear}</td>
+        <td>${formatCurrency(p.amount)}</td>
+        <td>${formatDate(p.paymentDate)}</td>
+        <td>${p.paymentMethod || '—'}</td>
+        <td>${getStatusBadge(p.status)}</td>
+        <td class="action-btns">
+          <button class="btn-icon btn-delete" onclick="deletePayment(${p.id})"><i class="bi bi-trash3"></i></button>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  }
+
+  document.getElementById('paymentSearch').addEventListener('input', (e) => {
+    renderPayments(e.target.value, document.getElementById('paymentFilterStatus').value);
+  });
+  document.getElementById('paymentFilterStatus').addEventListener('change', (e) => {
+    renderPayments(document.getElementById('paymentSearch').value, e.target.value);
+  });
+
+  // Populate tenant & property dropdowns in payment modal
+  function populatePaymentDropdowns() {
+    const tenants = getData(STORAGE_KEYS.tenants);
+    const properties = getData(STORAGE_KEYS.properties);
+    const tenantSel = document.getElementById('paymentFormTenant');
+    const propSel = document.getElementById('paymentFormProperty');
+    tenantSel.innerHTML = '<option value="">Select Tenant</option>' + tenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    propSel.innerHTML = '<option value="">Select Property</option>' + properties.map(p => `<option value="${p.id}">${p.propertyName} (${formatCurrency(p.rentAmount)})</option>`).join('');
+  }
+
+  document.getElementById('paymentModal').addEventListener('show.bs.modal', populatePaymentDropdowns);
+
+  document.getElementById('paymentForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const tenantId = parseInt(document.getElementById('paymentFormTenant').value);
+    const propertyId = parseInt(document.getElementById('paymentFormProperty').value);
+    const monthYear = document.getElementById('paymentFormMonth').value;
+    const amount = parseFloat(document.getElementById('paymentFormAmount').value);
+    const paymentDate = document.getElementById('paymentFormDate').value;
+    const method = document.getElementById('paymentFormMethod').value;
+    const status = document.getElementById('paymentFormStatus').value;
+
+    if (!tenantId || !propertyId || !monthYear || isNaN(amount) || !paymentDate) {
+      showToast('All fields required.', 'danger');
+      return;
+    }
+
+    let payments = getData(STORAGE_KEYS.payments);
+    const newPayment = {
+      id: getNextId(payments),
+      tenantId, propertyId, monthYear, amount, paymentDate, paymentMethod: method, status,
+      createdAt: new Date().toISOString()
+    };
+    payments.push(newPayment);
+    setData(STORAGE_KEYS.payments, payments);
+    showToast('Payment recorded.', 'success');
+    document.getElementById('paymentForm').reset();
+    bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+    renderPayments(document.getElementById('paymentSearch').value, document.getElementById('paymentFilterStatus').value);
+  });
+
+  function deletePayment(id) {
+    if (!confirm('Delete this payment?')) return;
+    let payments = getData(STORAGE_KEYS.payments);
+    payments = payments.filter(p => p.id !== id);
+    setData(STORAGE_KEYS.payments, payments);
+    showToast('Payment deleted.', 'info');
+    renderPayments(document.getElementById('paymentSearch').value, document.getElementById('paymentFilterStatus').value);
+  }
+
+  // ----- REPORTS -----
+  function renderReports() {
+    const payments = getData(STORAGE_KEYS.payments);
+    const properties = getData(STORAGE_KEYS.properties);
+    const tenants = getData(STORAGE_KEYS.tenants);
+
+    const totalTenants = tenants.length;
+    const totalProperties = properties.length;
+    const occupied = properties.filter(p => p.status === 'occupied').length;
+    const occupancyRate = totalProperties > 0 ? Math.round((occupied / totalProperties) * 100) : 0;
+
+    const paid = payments.filter(p => p.status === 'paid');
+    const totalCollected = paid.reduce((sum, p) => sum + Number(p.amount), 0);
+    const pending = payments.filter(p => p.status === 'pending');
+    const totalPending = pending.reduce((sum, p) => sum + Number(p.amount), 0);
+    const overdue = payments.filter(p => p.status === 'late');
+    const totalOverdue = overdue.reduce((sum, p) => sum + Number(p.amount), 0);
+
+    document.getElementById('reportStats').innerHTML = `
+      <div class="col-md-3"><div class="stat-card"><div class="stat-number">${totalTenants}</div><div class="stat-label">Tenants</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="border-left-color:#28a745;"><div class="stat-number">${totalProperties}</div><div class="stat-label">Properties</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="border-left-color:#ffc107;"><div class="stat-number">${occupancyRate}%</div><div class="stat-label">Occupancy</div></div></div>
+      <div class="col-md-3"><div class="stat-card" style="border-left-color:#4f8cf7;"><div class="stat-number">${formatCurrency(totalCollected)}</div><div class="stat-label">Collected</div></div></div>
+    `;
+
+    // Monthly collection chart
+    const monthMap = {};
+    payments.forEach(p => {
+      if (p.status === 'paid') {
+        const key = p.monthYear;
+        monthMap[key] = (monthMap[key] || 0) + Number(p.amount);
+      }
+    });
+    const sortedMonths = Object.keys(monthMap).sort();
+    const labels = sortedMonths.map(m => {
+      const [year, month] = m.split('-');
+      return new Date(year, month-1).toLocaleString('default', { month: 'short', year: 'numeric' });
+    });
+    const data = sortedMonths.map(m => monthMap[m] || 0);
+    new Chart(document.getElementById('reportChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Collected ($)', data, backgroundColor: '#4f8cf7', borderRadius: 6 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+
+    // Occupancy chart
+    const occData = [occupied, totalProperties - occupied];
+    new Chart(document.getElementById('occupancyChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Occupied', 'Vacant'],
+        datasets: [{ data: occData, backgroundColor: ['#28a745', '#ffc107'], borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Payment status chart
+    const statusCounts = {
+      paid: payments.filter(p => p.status === 'paid').length,
+      pending: payments.filter(p => p.status === 'pending').length,
+      late: payments.filter(p => p.status === 'late').length
+    };
+    new Chart(document.getElementById('paymentStatusChart').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Paid', 'Pending', 'Late'],
+        datasets: [{ data: [statusCounts.paid, statusCounts.pending, statusCounts.late], backgroundColor: ['#28a745', '#ffc107', '#dc3545'], borderWidth: 0 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+  }
+
+  // ============================================================
+  // 6. INIT
+  // ============================================================
+  function init() {
+    initUsers();
+    seedSampleData();
+    if (!checkAuth()) {
+      // Show login
+      return;
+    }
+    navigateTo('dashboard');
+  }
+
+  // Re-render when modal closed to refresh data (if needed)
+  document.addEventListener('hidden.bs.modal', function () {
+    // no-op
+  });
+
+  // Override show login to handle auth
+  window.onload = function() {
+    init();
+  };
+</script>
+</body>
+</html>
